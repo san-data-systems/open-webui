@@ -146,7 +146,12 @@ async def create_new_knowledge(
         )
 
     knowledge = Knowledges.insert_new_knowledge(user.id, form_data)
+    if knowledge.type == "File":
+        Knowledges.update_knowledge_status_by_id(id=knowledge.id, status="Completed")
+    else:
+        Knowledges.update_knowledge_status_by_id(id=knowledge.id, status="Pending")
 
+    knowledge = Knowledges.get_knowledge_by_id(id=knowledge.id)
     if knowledge:
         return knowledge
     else:
@@ -508,3 +513,48 @@ async def reset_knowledge_by_id(id: str, user=Depends(get_verified_user)):
     knowledge = Knowledges.update_knowledge_data_by_id(id=id, data={"file_ids": []})
 
     return knowledge
+
+
+############################
+# start Embedding
+############################
+
+
+@router.get("/{id}/embedding", response_model=Optional[KnowledgeFilesResponse])
+async def get_knowledge_embedding_by_id(
+    id: str,
+    user=Depends(get_verified_user),
+):
+    knowledge = Knowledges.get_knowledge_by_id(id=id)
+
+    if not knowledge:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=ERROR_MESSAGES.NOT_FOUND,
+        )
+
+    if knowledge.user_id != user.id and user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
+        )
+
+    if knowledge.type == "Github":
+        Knowledges.update_knowledge_status_by_id(id=id, status="Pending")
+        # Custom loader for GitHub
+        repo_url = knowledge.secret  # Assuming secret stores repo URL
+        vector_db = await setup_github_rag_loader(repo_url)
+        return {"detail": "Embedding completed for GitHub repository"}
+
+    elif knowledge.type == "Slack":
+        Knowledges.update_knowledge_status_by_id(id=id, status="Pending")
+        # Custom loader for Slack (to be implemented)
+        raise NotImplementedError("SlackLoader embedding is not implemented yet")
+
+    else:
+        Knowledges.update_knowledge_status_by_id(id=id, status="Failed")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Embedding not supported for type: {knowledge.type}",
+        )
+
