@@ -142,6 +142,8 @@ class KnowledgeTable:
             for knowledge in (
                 db.query(Knowledge).order_by(Knowledge.updated_at.desc()).all()
             ):
+                if knowledge.status != "Completed":
+                    continue
                 user = Users.get_user_by_id(knowledge.user_id)
                 knowledge_bases.append(
                     KnowledgeUserModel.model_validate(
@@ -157,6 +159,7 @@ class KnowledgeTable:
         self, user_id: str, permission: str = "write"
     ) -> list[KnowledgeUserModel]:
         knowledge_bases = self.get_knowledge_bases()
+        knowledge_bases = [k for k in knowledge_bases if k.status == "Completed"]
         return [
             knowledge_base
             for knowledge_base in knowledge_bases
