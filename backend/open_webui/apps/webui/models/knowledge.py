@@ -136,14 +136,14 @@ class KnowledgeTable:
             except Exception:
                 return None
 
-    def get_knowledge_bases(self) -> list[KnowledgeUserModel]:
+    def get_knowledge_bases(self, status: str = None) -> list[KnowledgeUserModel]:
         with get_db() as db:
             knowledge_bases = []
-            for knowledge in (
-                db.query(Knowledge).order_by(Knowledge.updated_at.desc()).all()
-            ):
-                if knowledge.status != "Completed":
-                    continue
+            if status == None:
+                knowledges = db.query(Knowledge).order_by(Knowledge.updated_at.desc()).all()
+            else:
+                knowledges = db.query(Knowledge).filter_by(status=status).order_by(Knowledge.updated_at.desc()).all()
+            for knowledge in knowledges:
                 user = Users.get_user_by_id(knowledge.user_id)
                 knowledge_bases.append(
                     KnowledgeUserModel.model_validate(
@@ -156,10 +156,9 @@ class KnowledgeTable:
             return knowledge_bases
 
     def get_knowledge_bases_by_user_id(
-        self, user_id: str, permission: str = "write"
+        self, user_id: str, permission: str = "write", status: str = None
     ) -> list[KnowledgeUserModel]:
-        knowledge_bases = self.get_knowledge_bases()
-        knowledge_bases = [k for k in knowledge_bases if k.status == "Completed"]
+        knowledge_bases = self.get_knowledge_bases(status)
         return [
             knowledge_base
             for knowledge_base in knowledge_bases
