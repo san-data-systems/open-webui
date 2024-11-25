@@ -35,6 +35,9 @@ class Knowledge(Base):
 
     data = Column(JSON, nullable=True)
     meta = Column(JSON, nullable=True)
+    type = Column(Text) # ["File", "GitHub", "Slack"]
+    secret = Column(Text)
+    status = Column(Text) #["Completed", "Processing", "Failed", "Pending"]
 
     access_control = Column(JSON, nullable=True)  # Controls data access levels.
     # Defines access control rules for this entry.
@@ -69,6 +72,11 @@ class KnowledgeModel(BaseModel):
     data: Optional[dict] = None
     meta: Optional[dict] = None
 
+    type: str
+    secret: str
+    status: str
+
+
     access_control: Optional[dict] = None
 
     created_at: int  # timestamp in epoch
@@ -97,6 +105,8 @@ class KnowledgeForm(BaseModel):
     description: str
     data: Optional[dict] = None
     access_control: Optional[dict] = None
+    type: str
+    secret: str
 
 
 class KnowledgeTable:
@@ -216,6 +226,40 @@ class KnowledgeTable:
                 return True
             except Exception:
                 return False
+
+def update_knowledge_status_by_id(self, id: str, status: str) -> Optional[KnowledgeModel]:
+    """
+    Update the 'status' field of a knowledge entry by its ID.
+
+    Args:
+        id (str): The ID of the knowledge entry to update.
+        status (str): The new status to set.
+
+    Returns:
+        Optional[KnowledgeModel]: The updated KnowledgeModel object, or None if not found or failed.
+    """
+    try:
+        with get_db() as db:
+            # Fetch the knowledge entry to ensure it exists
+            knowledge = db.query(Knowledge).filter_by(id=id).first()
+            if not knowledge:
+                log.warning(f"No knowledge entry found with ID: {id}")
+                return None
+
+            # Update the status field
+            db.query(Knowledge).filter_by(id=id).update(
+                {
+                    "status": status,
+                    "updated_at": int(time.time()),
+                }
+            )
+            db.commit()
+
+            # Fetch the updated entry
+            return self.get_knowledge_by_id(id=id)
+    except Exception as e:
+        log.exception(f"Failed to update status for knowledge ID {id}: {e}")
+        return None
 
 
 Knowledges = KnowledgeTable()
