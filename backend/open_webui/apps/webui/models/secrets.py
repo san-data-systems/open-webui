@@ -21,6 +21,7 @@ class Secret(Base):
     __tablename__ = "secret"
 
     id = Column(Text, unique=True, primary_key=True)
+    name: Column(String)
     type = Column(String)
     user_id = Column(String)
     meta = Column(JSON, nullable=True)
@@ -31,6 +32,7 @@ class Secret(Base):
 
 class SecretModel(BaseModel):
     id: str
+    name: str
     type: str
     user_id: str
     meta: Optional[dict] = None
@@ -39,6 +41,7 @@ class SecretModel(BaseModel):
 class SecretForm(BaseModel):
     id: str
     type: str
+    name: str
     user_id: str
     meta: Optional[dict] = None
 
@@ -76,6 +79,26 @@ class SecretTable:
             result = db.query(Secret).filter_by(id=secret_id).delete()
             db.commit()
             return result > 0
+
+    def update_secret_name_by_id(self, secret_id: str, name: str) -> Optional[SecretModel]:
+        """
+        Update the 'type' (name) of a secret by its ID.
+        """
+        with get_db() as db:
+            try:
+                # Fetch the secret
+                secret = db.query(Secret).filter_by(id=secret_id).first()
+                if secret:
+                    # Update the 'name' field
+                    secret.name = name
+                    db.commit()
+                    db.refresh(secret)
+                    return SecretModel.from_orm(secret)
+                return None
+            except Exception as e:
+                log.exception(f"Failed to update secret name: {e}")
+                db.rollback()
+                return None
 
 
 Secrets = SecretTable()

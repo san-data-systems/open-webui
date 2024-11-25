@@ -95,6 +95,11 @@ async def create_new_secret(
 async def update_secret_by_id(
     id: str, form_data: SecretForm, user=Depends(get_verified_user)
 ):
+    """
+    Update the name (type) of an existing secret by its ID.
+    Only the owner or an admin can update the secret.
+    """
+    # Fetch the secret by ID
     secret = SecretTable.get_secret_by_id(id)
     if not secret:
         raise HTTPException(
@@ -102,20 +107,22 @@ async def update_secret_by_id(
             detail=ERROR_MESSAGES.NOT_FOUND,
         )
 
+    # Check authorization
     if secret.user_id != user.id and user.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=ERROR_MESSAGES.UNAUTHORIZED,
         )
 
+    # Update only the 'type' (secret name)
     try:
-        updated_secret = SecretTable.update_secret_by_id(id, form_data)
+        updated_secret = SecretTable.update_secret_name_by_id(id, form_data.name)
         if updated_secret:
             return updated_secret
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=ERROR_MESSAGES.DEFAULT("Error updating secret"),
+                detail=ERROR_MESSAGES.DEFAULT("Error updating secret name"),
             )
     except Exception as e:
         raise HTTPException(
